@@ -1,0 +1,88 @@
+import os
+import sys
+# Add the project root directory to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.append(project_root)
+import google.generativeai as genai
+
+from flask import Flask, request, jsonify, render_template
+from src.scripts.data_preprocessing import DataPreprocessor
+from src.scripts.prediction import DiabetesPrediction
+
+class HealthRecommendations:
+    def __init__(self, api_key):
+        # Configure Google GenAI
+        genai.configure(api_key=api_key)
+        # For this example, we'll use the gemini-pro model
+        self.model = genai.GenerativeModel('gemini-pro')
+
+    def get_recommendations(self, patient_data, prediction):
+        # Create a prompt for the model
+        prompt = f"""
+        Given the following patient data:
+        - Glucose level: {patient_data['Glucose']}
+        - Blood Pressure: {patient_data['BloodPressure']}
+        - BMI: {patient_data['BMI']}
+        - Age: {patient_data['Age']}
+        - Diabetes Prediction: {'Positive' if prediction == 1 else 'Negative'}
+
+        Please provide specific health recommendations for this patient considering their metrics 
+        and diabetes risk status. Focus on diet, exercise, and lifestyle changes.
+        """
+
+        # Generate response using Google GenAI
+        response = self.model.generate_content(prompt)
+        
+        # Extract and return the recommendations
+        return response.text
+
+app = Flask(__name__, template_folder='src/templates')
+
+# Initialize components
+predictor = DiabetesPrediction()
+health_advisor = HealthRecommendations(api_key=os.getenv('AIzaSyBMh7bQCD1tf_9w7C04zNoJocEtHg9KLjI'))  # Changed to use Google API key
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        # Get data from request
+        data = request.json
+        features = [
+            float(data['pregnancies']),
+            float(data['glucose']),
+            float(data['bloodPressure']),
+            float(data['skinThickness']),
+            float(data['insulin']),
+            float(data['bmi']),
+            float(data['diabetesPedigree']),
+            float(data['age'])
+        ]
+        
+        # Make prediction
+        prediction_result = predictor.predict(features)
+        
+        # Get health recommendations
+        recommendations = health_advisor.get_recommendations(
+            patient_data={
+                'Glucose': data['glucose'],
+                'BloodPressure': data['bloodPressure'],
+                'BMI': data['bmi'],
+                'Age': data['age']
+            },
+            prediction=prediction_result
+        )
+        
+        return jsonify({
+            'prediction': prediction_result,
+            'recommendations': recommendations
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+if __name__ == '__main__':
+    app.run(debug=True)
