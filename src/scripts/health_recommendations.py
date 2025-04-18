@@ -6,8 +6,8 @@ import re
 class HealthRecommendations:
     def __init__(self):
         # Configure Google GenAI
-        api_key = os.getenv('AIzaSyAdCzdbvGIWIDfVdZre1n-10SIBf9bgcVk')  # Fetch from environment variable
-        genai.configure(api_key='AIzaSyAdCzdbvGIWIDfVdZre1n-10SIBf9bgcVk')
+        api_key = os.getenv('Fetch from environment variable')  # Fetch from environment variable
+        genai.configure(api_key='Fetch from environment variable')
 
     def get_recommendations(self, patient_data: Dict, prediction: Dict) -> Dict[str, List[str]]:
         """Generate personalized health recommendations based on patient data and prediction"""
